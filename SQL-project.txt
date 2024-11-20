@@ -1,0 +1,642 @@
+
+SELECT MIN(rental_duration) AS min_rental_duration,
+       MAX(rental_duration) AS max_rental_duration,
+       AVG(rental_duration) AS avg_rental_duration,
+       MIN(rental_rate) AS min_rental_rate,
+       MAX(rental_rate) AS max_rental_rate,
+       AVG(rental_rate) AS avg_rental_rate,
+       MIN(length) AS min_length,
+       MAX(length) AS max_length,
+       AVG(length) AS avg_length,
+       MIN(replacement_cost) AS min_replacement_cost,
+       MAX(replacement_cost) AS max_replacement_cost,
+       AVG(replacement_cost) AS avg_replacement_cost
+FROM film;
+
+
+
+
+
+SELECT
+    c.country,
+    COUNT(cu.customer_id) AS customer_count
+FROM
+    customer cu
+JOIN
+    address a ON cu.address_id = a.address_id
+JOIN
+    city ci ON a.city_id = ci.city_id
+JOIN
+    country c ON ci.country_id = c.country_id
+GROUP BY
+    c.country
+ORDER BY
+    customer_count DESC
+LIMIT 10;
+
+
+
+
+WITH TopCountries AS (
+    SELECT
+        c.country_id,
+        c.country,
+        COUNT(cu.customer_id) AS customer_count
+    FROM
+        customer cu
+    JOIN
+        address a ON cu.address_id = a.address_id
+    JOIN
+        city ci ON a.city_id = ci.city_id
+    JOIN
+        country c ON ci.country_id = c.country_id
+    GROUP BY
+        c.country_id, c.country
+    ORDER BY
+        customer_count DESC
+    LIMIT 10
+)
+SELECT
+    ci.city,
+    c.country,
+    COUNT(cu.customer_id) AS customer_count
+FROM
+    customer cu
+JOIN
+    address a ON cu.address_id = a.address_id
+JOIN
+    city ci ON a.city_id = ci.city_id
+JOIN
+    country c ON ci.country_id = c.country_id
+WHERE
+    c.country_id IN (SELECT country_id FROM TopCountries)
+GROUP BY
+    ci.city, c.country
+ORDER BY
+    customer_count DESC
+LIMIT 10;
+
+
+
+
+WITH TopCountries AS (
+    SELECT
+        c.country_id
+    FROM
+        customer cu
+    JOIN
+        address a ON cu.address_id = a.address_id
+    JOIN
+        city ci ON a.city_id = ci.city_id
+    JOIN
+        country c ON ci.country_id = c.country_id
+    GROUP BY
+        c.country_id
+    ORDER BY
+        COUNT(cu.customer_id) DESC
+    LIMIT 10
+),
+TopCities AS (
+    SELECT
+        ci.city_id
+    FROM
+        customer cu
+    JOIN
+        address a ON cu.address_id = a.address_id
+    JOIN
+        city ci ON a.city_id = ci.city_id
+    JOIN
+        country c ON ci.country_id = c.country_id
+    WHERE
+        c.country_id IN (SELECT country_id FROM TopCountries)
+    GROUP BY
+        ci.city_id
+    ORDER BY
+        COUNT(cu.customer_id) DESC
+    LIMIT 10
+)
+SELECT
+    cu.customer_id,
+    cu.first_name,
+    cu.last_name,
+    c.country,
+    ci.city,
+    SUM(p.amount) AS total_amount_paid
+FROM
+    payment p
+JOIN
+    rental r ON p.rental_id = r.rental_id
+JOIN
+    customer cu ON r.customer_id = cu.customer_id
+JOIN
+    address a ON cu.address_id = a.address_id
+JOIN
+    city ci ON a.city_id = ci.city_id
+JOIN
+    country c ON ci.country_id = c.country_id
+WHERE
+    ci.city_id IN (SELECT city_id FROM TopCities)
+GROUP BY
+    cu.customer_id, cu.first_name, cu.last_name, c.country, ci.city
+ORDER BY
+    total_amount_paid DESC
+LIMIT 5;
+
+
+SELECT AVG (total_amount_paid) AS average
+ FROM (
+SELECT
+      cu.customer_id,
+      cu.first_name,
+      cu.last_name,
+       c.country,
+       ci. city,
+ sum (p.amount) AS total_amount_paid
+  FROM customer cu
+  JOIN address a ON cu.address_id=a.address_id
+  JOIN city ci ON a.city_id=ci.city_id
+  JOIN country c ON ci.country_id=c.country_id
+JOIN payment p ON cu.customer_id=p.customer_id
+
+JOIN ( SELECT
+	       ci2.city_id,
+	        ci2.city,
+	         COUNT (cu2.customer_id) AS customer_count
+	
+	FROM customer cu2
+	
+	 JOIN address a2 ON cu2.address_id=a2.address_id
+	 JOIN city ci2 ON a2.city_id= ci2.city_id
+	 JOIN country c2 ON ci2.country_id= c2.country_id
+	 GROUP BY ci2.city_id,ci2.city
+	 ORDER BY customer_count DESC
+	 LIMIT 10)
+TopCities On ci.city_id= TopCities.city_id
+
+GROUP BY 
+        cu.customer_id,cu.first_name,cu.last_name,c.country,ci.city
+ORDER BY total_amount_paid DESC
+ LIMIT 5 ) AS total_amount_paid;
+
+
+
+
+
+SELECT
+    cu.customer_id,
+    cu.first_name,
+    cu.last_name,
+    co.country,
+    ci.city,
+    SUM(p.amount) AS total_amount_paid
+FROM
+    customer cu
+JOIN 
+    address a ON cu.address_id = a.address_id
+JOIN 
+    city ci ON a.city_id = ci.city_id
+JOIN 
+    country co ON ci.country_id = co.country_id
+JOIN 
+    payment p ON cu.customer_id = p.customer_id
+JOIN (
+    SELECT 
+        ci.city_id,
+        ci.city,
+        COUNT(cu.customer_id) AS customer_count
+    FROM 
+        customer cu
+    JOIN 
+        address a ON cu.address_id = a.address_id
+    JOIN 
+        city ci ON a.city_id = ci.city_id
+    GROUP BY 
+        ci.city_id, ci.city
+    ORDER BY 
+        customer_count DESC
+    LIMIT 10
+) AS TopCities ON ci.city_id = TopCities.city_id
+GROUP BY
+    cu.customer_id, cu.first_name, cu.last_name, co.country, ci.city
+ORDER BY
+    total_amount_paid DESC
+LIMIT 5;
+
+
+
+SELECT
+    co.country,
+    COUNT(DISTINCT cu.customer_id) AS all_customer_count,
+    COUNT(DISTINCT top_5.customer_id) AS top_customer_count,
+	 
+FROM
+    customer cu
+JOIN address a ON cu.address_id = a.address_id
+JOIN city ci ON a.city_id = ci.city_id
+JOIN country co ON ci.country_id = co.country_id
+LEFT JOIN (
+
+SELECT
+    cu.customer_id,
+    cu.first_name,
+    cu.last_name,
+    co.country,
+    ci.city,
+    SUM(p.amount) AS total_amount_paid
+FROM
+    customer cu
+JOIN 
+    address a ON cu.address_id = a.address_id
+JOIN 
+    city ci ON a.city_id = ci.city_id
+JOIN 
+    country co ON ci.country_id = co.country_id
+JOIN 
+    payment p ON cu.customer_id = p.customer_id
+JOIN (
+    SELECT 
+        ci.city_id,
+        ci.city,
+        COUNT(cu.customer_id) AS customer_count
+    FROM 
+        customer cu
+    JOIN 
+        address a ON cu.address_id = a.address_id
+    JOIN 
+        city ci ON a.city_id = ci.city_id
+    GROUP BY 
+        ci.city_id, ci.city
+    ORDER BY 
+        customer_count DESC
+    LIMIT 10
+) AS TopCities ON ci.city_id = TopCities.city_id
+GROUP BY
+    cu.customer_id, cu.first_name, cu.last_name, co.country, ci.city
+ORDER BY
+    total_amount_paid DESC
+LIMIT 5
+	) AS top_5 ON cu.customer_id = top_5.customer_id
+GROUP BY
+
+    co.country;
+
+
+
+
+
+WITH TopCountries AS (
+    SELECT
+        c.country_id
+    FROM
+        customer cu
+    JOIN
+        address a ON cu.address_id = a.address_id
+    JOIN
+        city ci ON a.city_id = ci.city_id
+    JOIN
+        country c ON ci.country_id = c.country_id
+    GROUP BY
+        c.country_id
+    ORDER BY
+        COUNT(cu.customer_id) DESC
+    LIMIT 10
+),
+TopCities AS (
+    SELECT
+        ci.city_id
+    FROM
+        customer cu
+    JOIN
+        address a ON cu.address_id = a.address_id
+    JOIN
+        city ci ON a.city_id = ci.city_id
+    JOIN
+        country c ON ci.country_id = c.country_id
+    WHERE
+        c.country_id IN (SELECT country_id FROM TopCountries)
+    GROUP BY
+        ci.city_id
+    ORDER BY
+        COUNT(cu.customer_id) DESC
+    LIMIT 10
+),
+TopCustomers AS (
+    SELECT
+        cu.customer_id,
+        cu.first_name,
+        cu.last_name,
+        c.country,
+        ci.city,
+        SUM(p.amount) AS total_amount_paid
+    FROM
+        payment p
+    JOIN
+        rental r ON p.rental_id = r.rental_id
+    JOIN
+        customer cu ON r.customer_id = cu.customer_id
+    JOIN
+        address a ON cu.address_id = a.address_id
+    JOIN
+        city ci ON a.city_id = ci.city_id
+    JOIN
+        country c ON ci.country_id = c.country_id
+    WHERE
+        ci.city_id IN (SELECT city_id FROM TopCities)
+    GROUP BY
+        cu.customer_id, cu.first_name, cu.last_name, c.country, ci.city
+    ORDER BY
+        total_amount_paid DESC
+    LIMIT 5
+)
+SELECT
+    AVG(total_amount_paid) AS average
+FROM
+    (SELECT total_amount_paid FROM TopCustomers) AS total_amount_paid;
+
+
+
+
+
+WITH TopCountries AS (
+    SELECT
+        c.country_id
+    FROM
+        customer cu
+    JOIN
+        address a ON cu.address_id = a.address_id
+    JOIN
+        city ci ON a.city_id = ci.city_id
+    JOIN
+        country c ON ci.country_id = c.country_id
+    GROUP BY
+        c.country_id
+    ORDER BY
+        COUNT(cu.customer_id) DESC
+    LIMIT 10
+),
+TopCities AS (
+    SELECT
+        ci.city_id
+    FROM
+        customer cu
+    JOIN
+        address a ON cu.address_id = a.address_id
+    JOIN
+        city ci ON a.city_id = ci.city_id
+    JOIN
+        country c ON ci.country_id = c.country_id
+    WHERE
+        c.country_id IN (SELECT country_id FROM TopCountries)
+    GROUP BY
+        ci.city_id
+    ORDER BY
+        COUNT(cu.customer_id) DESC
+    LIMIT 10
+),
+TopCustomers AS (
+    SELECT
+        cu.customer_id,
+        cu.first_name,
+        cu.last_name,
+        c.country_id,
+        ci.city,
+        SUM(p.amount) AS total_amount_paid
+    FROM
+        payment p
+    JOIN
+        rental r ON p.rental_id = r.rental_id
+    JOIN
+        customer cu ON r.customer_id = cu.customer_id
+    JOIN
+        address a ON cu.address_id = a.address_id
+    JOIN
+        city ci ON a.city_id = ci.city_id
+    JOIN
+        country c ON ci.country_id = c.country_id
+    WHERE
+        ci.city_id IN (SELECT city_id FROM TopCities)
+    GROUP BY
+        cu.customer_id, cu.first_name, cu.last_name, c.country_id, ci.city
+    ORDER BY
+        total_amount_paid DESC
+    LIMIT 5
+)
+SELECT
+    c.country,
+    COUNT(DISTINCT cu.customer_id) AS all_customer_count,
+    COUNT(DISTINCT tc.customer_id) AS top_customer_count
+FROM
+    customer cu
+JOIN
+    address a ON cu.address_id = a.address_id
+JOIN
+    city ci ON a.city_id = ci.city_id
+JOIN
+    country c ON ci.country_id = c.country_id
+LEFT JOIN
+    (SELECT customer_id, country_id FROM TopCustomers) AS tc ON c.country_id = tc.country_id
+GROUP BY
+    c.country
+ORDER BY
+    top_customer_count DESC;
+
+
+
+EXPLAIN ANALYZE 
+	SELECT
+    co.country,
+    COUNT(DISTINCT cu.customer_id) AS all_customer_count,
+    COUNT(DISTINCT top_5.customer_id) AS top_customer_count
+	 
+FROM
+    customer cu
+JOIN address a ON cu.address_id = a.address_id
+JOIN city ci ON a.city_id = ci.city_id
+JOIN country co ON ci.country_id = co.country_id
+LEFT JOIN (
+
+SELECT
+    cu.customer_id,
+    cu.first_name,
+    cu.last_name,
+    co.country,
+    ci.city,
+    SUM(p.amount) AS total_amount_paid
+FROM
+    customer cu
+JOIN 
+    address a ON cu.address_id = a.address_id
+JOIN 
+    city ci ON a.city_id = ci.city_id
+JOIN 
+    country co ON ci.country_id = co.country_id
+JOIN 
+    payment p ON cu.customer_id = p.customer_id
+JOIN (
+    SELECT 
+        ci.city_id,
+        ci.city,
+        COUNT(cu.customer_id) AS customer_count
+    FROM 
+        customer cu
+    JOIN 
+        address a ON cu.address_id = a.address_id
+    JOIN 
+        city ci ON a.city_id = ci.city_id
+    GROUP BY 
+        ci.city_id, ci.city
+    ORDER BY 
+        customer_count DESC
+    LIMIT 10
+) AS TopCities ON ci.city_id = TopCities.city_id
+GROUP BY
+    cu.customer_id, cu.first_name, cu.last_name, co.country, ci.city
+ORDER BY
+    total_amount_paid DESC
+LIMIT 5
+	) AS top_5 ON cu.customer_id = top_5.customer_id
+GROUP BY
+
+    co.country;
+ 
+CET
+
+
+EXPLAIN ANALYZE 
+
+          WITH TopCountries AS (
+    SELECT
+        c.country_id
+    FROM
+        customer cu
+    JOIN
+        address a ON cu.address_id = a.address_id
+    JOIN
+        city ci ON a.city_id = ci.city_id
+    JOIN
+        country c ON ci.country_id = c.country_id
+    GROUP BY
+        c.country_id
+    ORDER BY
+        COUNT(cu.customer_id) DESC
+    LIMIT 10
+),
+TopCities AS (
+    SELECT
+        ci.city_id
+    FROM
+        customer cu
+    JOIN
+        address a ON cu.address_id = a.address_id
+    JOIN
+        city ci ON a.city_id = ci.city_id
+    JOIN
+        country c ON ci.country_id = c.country_id
+    WHERE
+        c.country_id IN (SELECT country_id FROM TopCountries)
+    GROUP BY
+        ci.city_id
+    ORDER BY
+        COUNT(cu.customer_id) DESC
+    LIMIT 10
+),
+TopCustomers AS (
+    SELECT
+        cu.customer_id,
+        cu.first_name,
+        cu.last_name,
+        c.country_id,
+        ci.city,
+        SUM(p.amount) AS total_amount_paid
+    FROM
+        payment p
+    JOIN
+        rental r ON p.rental_id = r.rental_id
+    JOIN
+        customer cu ON r.customer_id = cu.customer_id
+    JOIN
+        address a ON cu.address_id = a.address_id
+    JOIN
+        city ci ON a.city_id = ci.city_id
+    JOIN
+        country c ON ci.country_id = c.country_id
+    WHERE
+        ci.city_id IN (SELECT city_id FROM TopCities)
+    GROUP BY
+        cu.customer_id, cu.first_name, cu.last_name, c.country_id, ci.city
+    ORDER BY
+        total_amount_paid DESC
+    LIMIT 5
+)
+SELECT
+    c.country,
+    COUNT(DISTINCT cu.customer_id) AS all_customer_count,
+    COUNT(DISTINCT tc.customer_id) AS top_customer_count
+FROM
+    customer cu
+JOIN
+    address a ON cu.address_id = a.address_id
+JOIN
+    city ci ON a.city_id = ci.city_id
+JOIN
+    country c ON ci.country_id = c.country_id
+LEFT JOIN
+    (SELECT customer_id, country_id FROM TopCustomers) AS tc ON c.country_id = tc.country_id
+GROUP BY
+    c.country
+ORDER BY
+    top_customer_count DESC;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
